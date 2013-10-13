@@ -109,7 +109,7 @@ int sd_set_segment_map(struct sd_display *display,
 //! Init all display pins.
 int sd_init(struct sd_display *display);
 //! Set display data.
-int sd_connect_display_to_data(struct sd_display *display, const enum sd_character *data);
+int sd_connect_display_to_data(struct sd_display *display, enum sd_character *data);
 //! Set dot position.
 /*! Pass -1 to erase dot.
  */
@@ -123,6 +123,8 @@ int sd_show_next(struct sd_display *display);
 //! Display an unsigned int at given location
 int sd_display_uint(struct sd_display *display, int_fast8_t first_digit,
 		    int_fast8_t last_digit, unsigned value);
+int sd_display_int(struct sd_display *display, int_fast8_t first_digit,
+		   int_fast8_t last_digit, int value);
 
 #ifdef __cplusplus
 } // extern C

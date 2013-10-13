@@ -23,32 +23,34 @@
 #ifndef ONE_WIRE_H_
 #define ONE_WIRE_H_
 
-#include <stdint.h>
+#include "stdint.h"
 
-#include <timer_delay.h>
+#include "timer_delay.h"
 
 /*! 1wire bus object. */
 struct ow_bus;
 /* Create and destruction. */
-int8_fast_t ow_bus_new(struct ow_bus **bus);
+int_fast8_t ow_bus_new(struct ow_bus **bus);
 struct ow_bus *ow_bus_ref(struct ow_bus *bus);
 struct ow_bus *ow_bus_unref(struct ow_bus *bus);
 void ow_bus_free(struct ow_bus *bus);
 /* Init functions. */
-int8_fast_t ow_bus_set_timer(struct ow_bus *bus, struct td_timer *timer);
-int8_fast_t ow_bus_set_output_fn(struct ow_bus *bus, void (*output_fn)(void));
-int8_fast_t ow_bus_set_input_fn(struct ow_bus *bus, void (*input_fn)(void));
-int8_fast_t ow_bus_set_pull_up_fn(struct ow_bus *bus, void (*pull_up_fn)(void));
-int8_fast_t ow_bus_set_pull_down_fn(struct ow_bus *bus, void (*pull_down_fn)(void));
-int8_fast_t ow_bus_set_read_fn(struct ow_bus *bus, uint8_fast_t (*read_fn)(void));
+int_fast8_t ow_bus_set_timer(struct ow_bus *bus, struct td_timer *timer);
+int_fast8_t ow_bus_set_output_fn(struct ow_bus *bus, void (*output_fn)(void));
+int_fast8_t ow_bus_set_input_fn(struct ow_bus *bus, void (*input_fn)(void));
+int_fast8_t ow_bus_set_pull_up_fn(struct ow_bus *bus, void (*pull_up_fn)(void));
+int_fast8_t ow_bus_set_pull_down_fn(struct ow_bus *bus, void (*pull_down_fn)(void));
+int_fast8_t ow_bus_set_read_fn(struct ow_bus *bus, uint_fast8_t (*read_fn)(void));
 /* Interface functions. */
+/*! Reset 1wire bus and return number of usec the bus was down. */
+int16_t ow_bus_reset(struct ow_bus *bus);
 
 #define OW_ADDRESS_LENGTH (8)
 
 /*! Stores address of 1 wire device. */
 struct ow_device;
 /* Create and destruction. */
-int8_fast_t ow_device_new(struct ow_device **device);
+int_fast8_t ow_device_new(struct ow_device **device);
 struct ow_device *ow_device_ref(struct ow_device *device);
 struct ow_device *ow_device_unref(struct ow_device *device);
 void ow_device_free(struct ow_device *device);

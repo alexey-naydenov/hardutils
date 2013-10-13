@@ -20,7 +20,6 @@
   Library for 7 segment displays.
 */
 
-//#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -41,7 +40,7 @@ struct sd_display {
   int_fast8_t digit_count;
   int_fast8_t current_digit;
   int_fast8_t dot_position;
-  uint_fast8_t *displayed_data;
+  enum sd_character *displayed_data;
   struct sd_segment *digit_pin_map;
   struct sd_segment *segment_pin_map;
   
@@ -206,7 +205,7 @@ int sd_init(struct sd_display *display) {
   return 0;
 }
 
-int sd_connect_display_to_data(struct sd_display *display, const enum sd_character *data) {
+int sd_connect_display_to_data(struct sd_display *display, enum sd_character *data) {
   /* if (display == NULL || display->digit_count <= 0) { */
   /*   return -1; */
   /* } */
@@ -262,5 +261,16 @@ int sd_display_uint(struct sd_display *display, int_fast8_t first_digit,
   for (i = first_digit; i <= last_digit; ++i) {
     display->displayed_data[i] = value % 10;
     value /= 10;
+  }
+}
+
+int sd_display_int(struct sd_display *display, int_fast8_t first_digit,
+		   int_fast8_t last_digit, int value) {
+  if (value > 0) {
+    display->displayed_data[last_digit] = SD_SEGMENT_NONE;
+    return sd_display_uint(display, first_digit, last_digit - 1, value);
+  } else {
+    display->displayed_data[last_digit] = SD_CHARACTER_MINUS;
+    return sd_display_uint(display, first_digit, last_digit - 1, -value);
   }
 }

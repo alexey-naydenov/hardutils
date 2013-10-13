@@ -61,3 +61,15 @@ int td_wait(struct td_timer *timer, TD_TIMER_TYPE delay) {
   return current - stop;
 }
 
+TD_TIMER_TYPE td_get_elapsed(struct td_timer *timer) {
+  TD_TIMER_TYPE current;
+  if (timer == 0) {
+    return 0;
+  }
+  current = timer->get_counter();
+  if (current >= timer->start) {
+    return current - timer->start;
+  } else {
+    return timer->period - timer->start + current;
+  }
+}
