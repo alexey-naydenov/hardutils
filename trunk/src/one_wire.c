@@ -2,9 +2,24 @@
 
 #include "one_wire.h"
 
+enum ow_errors {
+  OW_BUS_ERROR = 1,
+  OW_BUS_ERROR_BUSY,
+  OW_BUS_ERROR_NOOP,
+  OW_BUS_ERROR_NO_RESPONSE,
+  OW_BUS_ERROR_BUS_DOWN
+};
+
+enum ow_bus_state {
+  OW_BUS_IDLE,
+  OW_BUS_RESET_PULSE,
+  OW_BUS_RESET_RECOVER
+};
+
 struct ow_bus {
   int_fast8_t refcount;
   struct td_timer *timer;
+  enum ow_bus_state state;
   void (*output_fn)(void);
   void (*input_fn)(void);
   void (*pull_up_fn)(void);
@@ -16,6 +31,7 @@ int_fast8_t ow_bus_new(struct ow_bus **bus) {
   struct ow_bus *new_bus = calloc(1, sizeof(struct ow_bus));
   if (!new_bus) return -1;
   new_bus->refcount = 1;
+  new_bus->state = OW_BUS_IDLE;
   *bus = new_bus;
   return 0;
 }
@@ -66,14 +82,48 @@ int_fast8_t ow_bus_set_read_fn(struct ow_bus *bus, uint_fast8_t (*read_fn)(void)
   bus->read_fn = read_fn;
   return 0;
 }
+/* interface helper functions */
+int_fast8_t ow_bus_continue(struct ow_bus *bus) {
+  int_fast8_t rc;
+  switch (bus->state) {
+  case OW_BUS_IDLE:
+    return -OW_BUS_ERROR_NOOP;
+  case OW_BUS_RESET_PULSE:
+    rc = ow_bus_check_reset_response(bus);
+    if (rc < 0) bus->state = OW_BUS_IDLE;
+    return rc;
+  case OW_BUS_RESET_RECOVER:
+    if (!td_has_elapsed(bus->timer, 500)) {
+      return 1;
+    }
+    bus->state = OW_BUS_IDLE;
+    return 0;
+  default:
+    return -OW_BUS_ERROR;
+  }
+}
+int_fast8_t ow_bus_terminate_operation(struct ow_bus *bus) {
+  bus->state = OW_BUS_IDLE;
+  return 0;
+}
 /* Interface functions. */
-int16_t ow_bus_reset(struct ow_bus *bus) {
-  uint16_t capture, capture2;
+int_fast8_t ow_bus_reset(struct ow_bus *bus) {
+  if (bus->state != OW_BUS_IDLE) {
+    return -OW_BUS_ERROR_BUSY;
+  }
   /* pull down bus and wait for 500 us */
   bus->output_fn();
   bus->pull_down_fn();
   td_start(bus->timer);
-  td_wait(bus->timer, 500);
+  bus->state = OW_BUS_RESET_PULSE;
+  return 1;
+}
+
+int_fast8_t ow_bus_check_reset_response(struct ow_bus *bus) {
+  uint16_t capture;
+  if (!td_has_elapsed(bus->timer, 500)) {
+    return 1;
+  }
   /* pull up and wait a little, this should not be required */
   bus->pull_up_fn();
   td_start(bus->timer);
@@ -84,20 +134,18 @@ int16_t ow_bus_reset(struct ow_bus *bus) {
   	 && (capture = td_get_elapsed(bus->timer)) < 480);
   if (capture >= 480) { /* the bus was not pulled down */
     bus->output_fn();
-    return -1;
+    return -OW_BUS_ERROR_NO_RESPONSE;
   }
-  /* measure down time */
-  td_start(bus->timer);
+  /* wait during down time */
+  td_start(bus->timer); /* wait 480 usec from now to let device recover*/
   while (bus->read_fn() == 0
   	 && (capture = td_get_elapsed(bus->timer)) < 480);
-  td_start(bus->timer);
   bus->output_fn();
   if (capture >= 480) { /* the bus was not released */
-    return -2;
+    return -OW_BUS_ERROR_BUS_DOWN;
   }
-  /* wait for device to restore */
-  td_wait(bus->timer, 480 - capture);
-  return capture;
+  bus->state = OW_BUS_RESET_RECOVER;
+  return 1;
 }
 
 

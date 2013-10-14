@@ -266,7 +266,7 @@ int sd_display_uint(struct sd_display *display, int_fast8_t first_digit,
 
 int sd_display_int(struct sd_display *display, int_fast8_t first_digit,
 		   int_fast8_t last_digit, int value) {
-  if (value > 0) {
+  if (value >= 0) {
     display->displayed_data[last_digit] = SD_SEGMENT_NONE;
     return sd_display_uint(display, first_digit, last_digit - 1, value);
   } else {

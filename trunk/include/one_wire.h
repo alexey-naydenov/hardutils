@@ -41,9 +41,18 @@ int_fast8_t ow_bus_set_input_fn(struct ow_bus *bus, void (*input_fn)(void));
 int_fast8_t ow_bus_set_pull_up_fn(struct ow_bus *bus, void (*pull_up_fn)(void));
 int_fast8_t ow_bus_set_pull_down_fn(struct ow_bus *bus, void (*pull_down_fn)(void));
 int_fast8_t ow_bus_set_read_fn(struct ow_bus *bus, uint_fast8_t (*read_fn)(void));
-/* Interface functions. */
+/* Interface functions. All 1wire operations are split into parts. An
+   operations is started by calling one of operation functions. The
+   control is returned from function as soon as break can be made. To
+   continue operation ow_bus_continue function must be called
+   repeatedly untill 0 or negative value is returned. Negative value
+   indicates error, 0 - successfully finished operation.
+ */
+int_fast8_t ow_bus_continue(struct ow_bus *bus);
+int_fast8_t ow_bus_terminate_operation(struct ow_bus *bus);
 /*! Reset 1wire bus and return number of usec the bus was down. */
-int16_t ow_bus_reset(struct ow_bus *bus);
+int_fast8_t ow_bus_reset(struct ow_bus *bus);
+int_fast8_t ow_bus_check_reset_response(struct ow_bus *bus);
 
 #define OW_ADDRESS_LENGTH (8)
 
