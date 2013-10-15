@@ -260,7 +260,7 @@ int_fast8_t ow_device_new(struct ow_device **device) {
   return 0;
 }
 struct ow_device *ow_device_ref(struct ow_device *device) {
-  if (device == NULL) return NULL;
+  if (device == NULL || device->bus == NULL) return NULL;
   device->refcount++;
   return device;
 }
@@ -275,6 +275,12 @@ void ow_device_free(struct ow_device *device) {
   if (device == NULL) return;
   ow_bus_unref(device->bus);
   free(device);
+}
+
+int_fast8_t ow_device_set_bus(struct ow_device *device, struct ow_bus *bus) {
+  if (device == NULL || bus == NULL || device->bus != NULL) return -1;
+  device->bus = bus;
+  return 0;
 }
 
 int_fast8_t ow_device_continue(struct ow_device *device) {
@@ -321,6 +327,10 @@ int_fast8_t ow_device_start_operation(struct ow_device *device) {
     device->state = OW_DEVICE_IDLE;
   }
   return rc;
+}
+
+int_fast8_t ow_device_is_busy(struct ow_device *device) {
+  return device->state != OW_DEVICE_IDLE;
 }
 
 uint8_t *ow_device_get_address(struct ow_device *device) {

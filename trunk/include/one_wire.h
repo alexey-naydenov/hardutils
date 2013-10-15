@@ -69,8 +69,9 @@ int_fast8_t ow_device_new(struct ow_device **device);
 struct ow_device *ow_device_ref(struct ow_device *device);
 struct ow_device *ow_device_unref(struct ow_device *device);
 void ow_device_free(struct ow_device *device);
-
+int_fast8_t ow_device_set_bus(struct ow_device *device, struct ow_bus *bus);
 int_fast8_t ow_device_start_operation(struct ow_device *device);
+int_fast8_t ow_device_is_busy(struct ow_device *device);
 
 int_fast8_t ow_device_continue(struct ow_device *device);
 uint8_t *ow_device_get_address(struct ow_device *device);
