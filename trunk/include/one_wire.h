@@ -54,10 +54,10 @@ int_fast8_t ow_bus_terminate_operation(struct ow_bus *bus);
 int_fast8_t ow_bus_reset(struct ow_bus *bus);
 int_fast8_t ow_bus_check_reset_response(struct ow_bus *bus);
 /*! Send a byte over 1wire. */
-int_fast8_t ow_bus_write(struct ow_bus *bus, uint_fast8_t data);
+int_fast8_t ow_bus_write(struct ow_bus *bus, uint8_t data);
 int_fast8_t ow_bus_write_next_bit(struct ow_bus *bus);
 /*! Read a byte from 1wire. */
-int_fast8_t ow_bus_read(struct ow_bus *bus, uint_fast8_t *data);
+int_fast8_t ow_bus_read(struct ow_bus *bus, uint8_t *data);
 int_fast8_t ow_bus_read_next_bit(struct ow_bus *bus);
 
 #define OW_ADDRESS_LENGTH (8)
@@ -69,5 +69,11 @@ int_fast8_t ow_device_new(struct ow_device **device);
 struct ow_device *ow_device_ref(struct ow_device *device);
 struct ow_device *ow_device_unref(struct ow_device *device);
 void ow_device_free(struct ow_device *device);
+
+int_fast8_t ow_device_start_operation(struct ow_device *device);
+
+int_fast8_t ow_device_continue(struct ow_device *device);
+uint8_t *ow_device_get_address(struct ow_device *device);
+int_fast8_t  ow_device_read_rom(struct ow_device *device);
 
 #endif /* ONE_WIRE_H_ */

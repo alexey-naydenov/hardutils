@@ -2,15 +2,17 @@
 
 #include "one_wire.h"
 
+#define ARRAY_SIZE(x) sizeof(x)/sizeof(x[0])
+
 enum ow_errors {
-  OW_BUS_ERROR = 1,
-  OW_BUS_ERROR_BUSY,
-  OW_BUS_ERROR_NOOP,
-  OW_BUS_ERROR_NO_RESPONSE,
-  OW_BUS_ERROR_BUS_DOWN
+  OW_ERROR = 1,
+  OW_ERROR_BUSY,
+  OW_ERROR_NOOP,
+  OW_ERROR_NO_RESPONSE,
+  OW_ERROR_BUS_DOWN
 };
 
-enum ow_bus_state {
+enum ow_bus_states {
   OW_BUS_IDLE,
   OW_BUS_RESET_PULSE,
   OW_BUS_RESET_RECOVER,
@@ -21,7 +23,7 @@ enum ow_bus_state {
 struct ow_bus {
   int_fast8_t refcount;
   struct td_timer *timer;
-  enum ow_bus_state state;
+  enum ow_bus_states state;
   uint_fast8_t data;
   uint_fast8_t *out_data;
   uint_fast8_t bit;
@@ -34,7 +36,7 @@ struct ow_bus {
 /* Create and destruction. */
 int_fast8_t ow_bus_new(struct ow_bus **bus) {
   struct ow_bus *new_bus = calloc(1, sizeof(struct ow_bus));
-  if (!new_bus) return -1;
+  if (!new_bus) return -OW_ERROR;
   new_bus->refcount = 1;
   new_bus->state = OW_BUS_IDLE;
   *bus = new_bus;
@@ -58,32 +60,32 @@ void ow_bus_free(struct ow_bus *bus) {
 }
 /* Init functions. */
 int_fast8_t ow_bus_set_timer(struct ow_bus *bus, struct td_timer *timer) {
-  if (bus == NULL || timer == NULL) return -1;
+  if (bus == NULL || timer == NULL) return -OW_ERROR;
   bus->timer = timer;
   return 0;
 }
 int_fast8_t ow_bus_set_output_fn(struct ow_bus *bus, void (*output_fn)(void)) {
-  if (bus == NULL || output_fn == NULL) return -1;
+  if (bus == NULL || output_fn == NULL) return -OW_ERROR;
   bus->output_fn = output_fn;
   return 0;
 }
 int_fast8_t ow_bus_set_input_fn(struct ow_bus *bus, void (*input_fn)(void)) {
-  if (bus == NULL || input_fn == NULL) return -1;
+  if (bus == NULL || input_fn == NULL) return -OW_ERROR;
   bus->input_fn = input_fn;
   return 0;
 }
 int_fast8_t ow_bus_set_pull_up_fn(struct ow_bus *bus, void (*pull_up_fn)(void)) {
-  if (bus == NULL || pull_up_fn == NULL) return -1;
+  if (bus == NULL || pull_up_fn == NULL) return -OW_ERROR;
   bus->pull_up_fn = pull_up_fn;
   return 0;
 }
 int_fast8_t ow_bus_set_pull_down_fn(struct ow_bus *bus, void (*pull_down_fn)(void)) {
-  if (bus == NULL || pull_down_fn == NULL) return -1;
+  if (bus == NULL || pull_down_fn == NULL) return -OW_ERROR;
   bus->pull_down_fn = pull_down_fn;
   return 0;
 }
 int_fast8_t ow_bus_set_read_fn(struct ow_bus *bus, uint_fast8_t (*read_fn)(void)) {
-  if (bus == NULL || read_fn == NULL) return -1;
+  if (bus == NULL || read_fn == NULL) return -OW_ERROR;
   bus->read_fn = read_fn;
   return 0;
 }
@@ -92,7 +94,7 @@ int_fast8_t ow_bus_continue(struct ow_bus *bus) {
   int_fast8_t rc;
   switch (bus->state) {
   case OW_BUS_IDLE:
-    return -OW_BUS_ERROR_NOOP;
+    return -OW_ERROR_NOOP;
   case OW_BUS_RESET_PULSE:
     rc = ow_bus_check_reset_response(bus);
     if (rc < 0) bus->state = OW_BUS_IDLE;
@@ -108,7 +110,7 @@ int_fast8_t ow_bus_continue(struct ow_bus *bus) {
   case OW_BUS_READ:
     return ow_bus_read_next_bit(bus);
   default:
-    return -OW_BUS_ERROR;
+    return -OW_ERROR;
   }
 }
 int_fast8_t ow_bus_terminate_operation(struct ow_bus *bus) {
@@ -118,7 +120,7 @@ int_fast8_t ow_bus_terminate_operation(struct ow_bus *bus) {
 /* Interface functions. */
 int_fast8_t ow_bus_reset(struct ow_bus *bus) {
   if (bus->state != OW_BUS_IDLE) {
-    return -OW_BUS_ERROR_BUSY;
+    return -OW_ERROR_BUSY;
   }
   /* pull down bus and wait for 500 us */
   bus->output_fn();
@@ -143,7 +145,7 @@ int_fast8_t ow_bus_check_reset_response(struct ow_bus *bus) {
   	 && (capture = td_get_elapsed(bus->timer)) < 480);
   if (capture >= 480) { /* the bus was not pulled down */
     bus->output_fn();
-    return -OW_BUS_ERROR_NO_RESPONSE;
+    return -OW_ERROR_NO_RESPONSE;
   }
   /* wait during down time */
   td_start(bus->timer); /* wait 480 usec from now to let device recover*/
@@ -151,15 +153,15 @@ int_fast8_t ow_bus_check_reset_response(struct ow_bus *bus) {
   	 && (capture = td_get_elapsed(bus->timer)) < 480);
   bus->output_fn();
   if (capture >= 480) { /* the bus was not released */
-    return -OW_BUS_ERROR_BUS_DOWN;
+    return -OW_ERROR_BUS_DOWN;
   }
   bus->state = OW_BUS_RESET_RECOVER;
   return 1;
 }
 
-int_fast8_t ow_bus_write(struct ow_bus *bus, uint_fast8_t data) {
+int_fast8_t ow_bus_write(struct ow_bus *bus, uint8_t data) {
   if (bus->state != OW_BUS_IDLE) {
-    return -OW_BUS_ERROR_BUSY;
+    return -OW_ERROR_BUSY;
   }
   bus->state = OW_BUS_WRITE;
   bus->data = data;
@@ -185,9 +187,9 @@ int_fast8_t ow_bus_write_next_bit(struct ow_bus *bus) {
   return 1;
 }
 
-int_fast8_t ow_bus_read(struct ow_bus *bus, uint_fast8_t *data) {
+int_fast8_t ow_bus_read(struct ow_bus *bus, uint8_t *data) {
   if (bus->state != OW_BUS_IDLE) {
-    return -OW_BUS_ERROR_BUSY;
+    return -OW_ERROR_BUSY;
   }
   bus->state = OW_BUS_READ;
   bus->out_data = data;
@@ -213,10 +215,32 @@ int_fast8_t ow_bus_read_next_bit(struct ow_bus *bus) {
   return 1;
 }
 
+enum ow_device_operations {
+  OW_DEVICE_OP_RESET = 0,
+  OW_DEVICE_OP_WRITE,
+  OW_DEVICE_OP_READ
+};
+
+enum ow_device_states {
+  OW_DEVICE_IDLE = 0,
+  OW_DEVICE_BUSY
+};
+
+const enum ow_device_operations OW_READ_ROM_OPERATIONS[] = {
+  OW_DEVICE_OP_RESET, OW_DEVICE_OP_WRITE, OW_DEVICE_OP_READ, OW_DEVICE_OP_READ,
+  OW_DEVICE_OP_READ, OW_DEVICE_OP_READ, OW_DEVICE_OP_READ, OW_DEVICE_OP_READ,
+  OW_DEVICE_OP_READ, OW_DEVICE_OP_READ};
+const uint8_t OW_READ_ROM_DATA_SOURCE[] = {0x33};
+
 struct ow_device {
   int_fast8_t refcount;
   struct ow_bus *bus;
-  uint_fast8_t address[OW_ADDRESS_LENGTH];
+  enum ow_device_states state;
+  uint_fast8_t operation_count;
+  const uint8_t *operations;
+  const uint8_t *data_source;
+  uint8_t *data_sink;
+  uint8_t address[OW_ADDRESS_LENGTH];
 };
 
 /* Create and destruction. */
@@ -231,6 +255,7 @@ int_fast8_t ow_device_new(struct ow_device **device) {
   for (i = 0; i < OW_ADDRESS_LENGTH; ++i) {
     new_device->address[i] = 0;
   }
+  new_device->state = OW_DEVICE_IDLE;
   *device = new_device;
   return 0;
 }
@@ -250,5 +275,66 @@ void ow_device_free(struct ow_device *device) {
   if (device == NULL) return;
   ow_bus_unref(device->bus);
   free(device);
+}
+
+int_fast8_t ow_device_continue(struct ow_device *device) {
+  int_fast8_t rc;
+  switch (device->state) {
+  case OW_DEVICE_IDLE:
+     return -OW_ERROR_NOOP;
+  case OW_DEVICE_BUSY:
+    rc = ow_bus_continue(device->bus);
+    if (rc == 0) {
+      if (device->operation_count-- == 0) {
+	device->state = OW_DEVICE_IDLE;
+	return 0;
+      }
+      device->operations++;
+      return ow_device_start_operation(device);
+    }
+    if (rc < 0) {
+      device->state = OW_DEVICE_IDLE;
+    }
+    return rc;
+  default:
+    return -OW_ERROR;
+  }
+}
+
+int_fast8_t ow_device_start_operation(struct ow_device *device) {
+  int_fast8_t rc;
+  device->state = OW_DEVICE_BUSY;
+  switch (*(device->operations)) {
+  case OW_DEVICE_OP_RESET:
+    rc = ow_bus_reset(device->bus);
+    break;
+  case OW_DEVICE_OP_WRITE:
+    rc = ow_bus_write(device->bus, *(device->data_source));
+    device->data_source++;
+    break;
+  case OW_DEVICE_OP_READ:
+    rc = ow_bus_read(device->bus, device->data_sink);
+    device->data_sink++;
+    break;
+  }
+  if (rc < 0) {
+    device->state = OW_DEVICE_IDLE;
+  }
+  return rc;
+}
+
+uint8_t *ow_device_get_address(struct ow_device *device) {
+  return device->address;
+}
+
+int_fast8_t  ow_device_read_rom(struct ow_device *device) {
+  if (device->state != OW_DEVICE_IDLE) {
+    return -OW_ERROR_BUSY;
+  }
+  device->operation_count = ARRAY_SIZE(OW_READ_ROM_OPERATIONS);
+  device->operations = OW_READ_ROM_OPERATIONS;
+  device->data_source = OW_READ_ROM_DATA_SOURCE;
+  device->data_sink = device->address;
+  return ow_device_start_operation(device);
 }
 
