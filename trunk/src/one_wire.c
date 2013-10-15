@@ -13,13 +13,18 @@ enum ow_errors {
 enum ow_bus_state {
   OW_BUS_IDLE,
   OW_BUS_RESET_PULSE,
-  OW_BUS_RESET_RECOVER
+  OW_BUS_RESET_RECOVER,
+  OW_BUS_WRITE,
+  OW_BUS_READ
 };
 
 struct ow_bus {
   int_fast8_t refcount;
   struct td_timer *timer;
   enum ow_bus_state state;
+  uint_fast8_t data;
+  uint_fast8_t *out_data;
+  uint_fast8_t bit;
   void (*output_fn)(void);
   void (*input_fn)(void);
   void (*pull_up_fn)(void);
@@ -98,6 +103,10 @@ int_fast8_t ow_bus_continue(struct ow_bus *bus) {
     }
     bus->state = OW_BUS_IDLE;
     return 0;
+  case OW_BUS_WRITE:
+    return ow_bus_write_next_bit(bus);
+  case OW_BUS_READ:
+    return ow_bus_read_next_bit(bus);
   default:
     return -OW_BUS_ERROR;
   }
@@ -148,7 +157,61 @@ int_fast8_t ow_bus_check_reset_response(struct ow_bus *bus) {
   return 1;
 }
 
+int_fast8_t ow_bus_write(struct ow_bus *bus, uint_fast8_t data) {
+  if (bus->state != OW_BUS_IDLE) {
+    return -OW_BUS_ERROR_BUSY;
+  }
+  bus->state = OW_BUS_WRITE;
+  bus->data = data;
+  bus->bit = 0;
+  return ow_bus_write_next_bit(bus);
+}
 
+int_fast8_t ow_bus_write_next_bit(struct ow_bus *bus) {
+  bus->output_fn();
+  bus->pull_down_fn();
+  td_start(bus->timer);
+  td_wait(bus->timer, 2);
+  if (bus->data & (1<<(bus->bit))) {
+      bus->pull_up_fn();
+  }
+  td_wait(bus->timer, 90);
+  bus->pull_up_fn();
+  bus->bit++;
+  if (bus->bit == 8) {
+    bus->state = OW_BUS_IDLE;
+    return 0;
+  }
+  return 1;
+}
+
+int_fast8_t ow_bus_read(struct ow_bus *bus, uint_fast8_t *data) {
+  if (bus->state != OW_BUS_IDLE) {
+    return -OW_BUS_ERROR_BUSY;
+  }
+  bus->state = OW_BUS_READ;
+  bus->out_data = data;
+  *(bus->out_data) = 0;
+  bus->bit = 0;
+  return ow_bus_read_next_bit(bus);
+}
+int_fast8_t ow_bus_read_next_bit(struct ow_bus *bus) {
+  uint_fast8_t rc;
+  bus->output_fn();
+  bus->pull_down_fn();
+  td_start(bus->timer);
+  td_wait(bus->timer, 1);
+  bus->input_fn();
+  td_wait(bus->timer, 11);
+  rc = bus->read_fn();
+  *(bus->out_data) |= (rc<<(bus->bit));
+  bus->bit++;
+  if (bus->bit == 8) {
+    bus->state = OW_BUS_IDLE;
+    return 0;
+  }
+  return 1;
+}
 
 struct ow_device {
   int_fast8_t refcount;

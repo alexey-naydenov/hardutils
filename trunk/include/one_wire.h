@@ -53,6 +53,12 @@ int_fast8_t ow_bus_terminate_operation(struct ow_bus *bus);
 /*! Reset 1wire bus and return number of usec the bus was down. */
 int_fast8_t ow_bus_reset(struct ow_bus *bus);
 int_fast8_t ow_bus_check_reset_response(struct ow_bus *bus);
+/*! Send a byte over 1wire. */
+int_fast8_t ow_bus_write(struct ow_bus *bus, uint_fast8_t data);
+int_fast8_t ow_bus_write_next_bit(struct ow_bus *bus);
+/*! Read a byte from 1wire. */
+int_fast8_t ow_bus_read(struct ow_bus *bus, uint_fast8_t *data);
+int_fast8_t ow_bus_read_next_bit(struct ow_bus *bus);
 
 #define OW_ADDRESS_LENGTH (8)
 
