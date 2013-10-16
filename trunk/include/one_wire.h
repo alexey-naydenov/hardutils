@@ -27,6 +27,8 @@
 
 #include "timer_delay.h"
 
+uint8_t ow_crc(uint8_t *data, int length);
+
 /*! 1wire bus object. */
 struct ow_bus;
 /* Create and destruction. */
@@ -63,7 +65,7 @@ int_fast8_t ow_bus_read_next_bit(struct ow_bus *bus);
 #define OW_ADDRESS_LENGTH (8)
 
 /*! Stores address of 1 wire device. */
-struct ow_device;
+/* struct ow_device; */
 /* Create and destruction. */
 int_fast8_t ow_device_new(struct ow_device **device);
 struct ow_device *ow_device_ref(struct ow_device *device);

@@ -4,6 +4,23 @@
 
 #define ARRAY_SIZE(x) sizeof(x)/sizeof(x[0])
 
+uint8_t ow_crc(uint8_t *data, int length) {
+  int bi, di;
+  uint8_t crc = 0;
+  for (di = 0; di < length; ++di) {
+    crc ^= data[di];
+    for (bi = 0; bi < 8; ++bi) {
+      if (crc & 0x1) {
+	crc = (crc >> 1) ^ 0x8c;
+      } else {
+	crc = crc >> 1;
+      }
+    }
+  }
+
+  return crc;
+}
+
 enum ow_errors {
   OW_ERROR = 1,
   OW_ERROR_BUSY,
