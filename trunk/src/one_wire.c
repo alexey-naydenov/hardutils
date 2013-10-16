@@ -247,7 +247,8 @@ const enum ow_device_operations OW_READ_ROM_OPERATIONS[] = {
   OW_DEVICE_OP_RESET, OW_DEVICE_OP_WRITE, OW_DEVICE_OP_READ, OW_DEVICE_OP_READ,
   OW_DEVICE_OP_READ, OW_DEVICE_OP_READ, OW_DEVICE_OP_READ, OW_DEVICE_OP_READ,
   OW_DEVICE_OP_READ, OW_DEVICE_OP_READ};
-const uint8_t OW_READ_ROM_DATA_SOURCE[] = {0x33};
+
+#define OW_DEVICE_BUFFER_SIZE 19
 
 struct ow_device {
   int_fast8_t refcount;
@@ -255,9 +256,9 @@ struct ow_device {
   enum ow_device_states state;
   uint_fast8_t operation_count;
   const uint8_t *operations;
-  const uint8_t *data_source;
+  uint8_t *buffer; /* buffer for sending data, stores device address */
+  uint8_t *data_source;
   uint8_t *data_sink;
-  uint8_t address[OW_ADDRESS_LENGTH];
 };
 
 /* Create and destruction. */
@@ -269,10 +270,12 @@ int_fast8_t ow_device_new(struct ow_device **device) {
   if (new_device == NULL) return -1;
   new_device->refcount = 1;
   new_device->bus = NULL;
-  for (i = 0; i < OW_ADDRESS_LENGTH; ++i) {
-    new_device->address[i] = 0;
-  }
   new_device->state = OW_DEVICE_IDLE;
+  new_device->buffer = calloc(OW_DEVICE_BUFFER_SIZE, sizeof(uint8_t));
+  if (new_device->buffer == NULL) {
+    free(new_device);
+    return -1;
+  }
   *device = new_device;
   return 0;
 }
@@ -291,6 +294,7 @@ struct ow_device *ow_device_unref(struct ow_device *device) {
 void ow_device_free(struct ow_device *device) {
   if (device == NULL) return;
   ow_bus_unref(device->bus);
+  free(device->buffer);
   free(device);
 }
 
@@ -351,7 +355,7 @@ int_fast8_t ow_device_is_busy(struct ow_device *device) {
 }
 
 uint8_t *ow_device_get_address(struct ow_device *device) {
-  return device->address;
+  return &(device->buffer[1]);
 }
 
 int_fast8_t  ow_device_read_rom(struct ow_device *device) {
@@ -360,8 +364,9 @@ int_fast8_t  ow_device_read_rom(struct ow_device *device) {
   }
   device->operation_count = ARRAY_SIZE(OW_READ_ROM_OPERATIONS);
   device->operations = OW_READ_ROM_OPERATIONS;
-  device->data_source = OW_READ_ROM_DATA_SOURCE;
-  device->data_sink = device->address;
+  device->data_source = device->buffer;
+  device->data_source[0] = 0x33; /* read rom operation code */
+  device->data_sink = ow_device_get_address(device); /* data_source[1] */
   return ow_device_start_operation(device);
 }
 
