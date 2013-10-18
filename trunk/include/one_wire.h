@@ -78,5 +78,6 @@ int_fast8_t ow_device_is_busy(struct ow_device *device);
 int_fast8_t ow_device_continue(struct ow_device *device);
 uint8_t *ow_device_get_address(struct ow_device *device);
 int_fast8_t  ow_device_read_rom(struct ow_device *device);
-
+int_fast8_t  ow_device_read_scratchpad(struct ow_device *device,
+				       uint8_t *scratchpad);
 #endif /* ONE_WIRE_H_ */

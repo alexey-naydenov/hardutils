@@ -248,6 +248,15 @@ const enum ow_device_operations OW_READ_ROM_OPERATIONS[] = {
   OW_DEVICE_OP_READ, OW_DEVICE_OP_READ, OW_DEVICE_OP_READ, OW_DEVICE_OP_READ,
   OW_DEVICE_OP_READ, OW_DEVICE_OP_READ};
 
+const enum ow_device_operations OW_READ_SCRATCHPAD_OPERATIONS[] = {
+  OW_DEVICE_OP_RESET, OW_DEVICE_OP_WRITE, /* match rom */
+  OW_DEVICE_OP_WRITE, OW_DEVICE_OP_WRITE, OW_DEVICE_OP_WRITE, OW_DEVICE_OP_WRITE, 
+  OW_DEVICE_OP_WRITE, OW_DEVICE_OP_WRITE, OW_DEVICE_OP_WRITE, OW_DEVICE_OP_WRITE,
+  OW_DEVICE_OP_WRITE, /* read scratchpad command */
+  OW_DEVICE_OP_READ, OW_DEVICE_OP_READ, OW_DEVICE_OP_READ, OW_DEVICE_OP_READ,
+  OW_DEVICE_OP_READ, OW_DEVICE_OP_READ, OW_DEVICE_OP_READ, OW_DEVICE_OP_READ,
+  OW_DEVICE_OP_READ};
+
 #define OW_DEVICE_BUFFER_SIZE 19
 
 struct ow_device {
@@ -370,3 +379,17 @@ int_fast8_t  ow_device_read_rom(struct ow_device *device) {
   return ow_device_start_operation(device);
 }
 
+int_fast8_t  ow_device_read_scratchpad(struct ow_device *device,
+				       uint8_t *scratchpad) {
+  if (device->state != OW_DEVICE_IDLE) {
+    return -OW_ERROR_BUSY;
+  }
+  device->operation_count = ARRAY_SIZE(OW_READ_SCRATCHPAD_OPERATIONS);
+  device->operations = OW_READ_SCRATCHPAD_OPERATIONS;
+  device->data_source = device->buffer;
+  device->data_source[0] = 0x55; /* match rom */
+  /* address must be stored in bytes 1...8 */
+  device->data_source[9] = 0xbe; /* read scratchpad */
+  device->data_sink = scratchpad;
+  return ow_device_start_operation(device);
+}
