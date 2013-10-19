@@ -62,6 +62,8 @@ int_fast8_t ow_bus_write_next_bit(struct ow_bus *bus);
 int_fast8_t ow_bus_read(struct ow_bus *bus, uint8_t *data);
 int_fast8_t ow_bus_read_next_bit(struct ow_bus *bus);
 
+int_fast8_t ow_bus_read_bit(struct ow_bus *bus);
+
 #define OW_ADDRESS_LENGTH (8)
 
 /*! Stores address of 1 wire device. */
@@ -80,4 +82,6 @@ uint8_t *ow_device_get_address(struct ow_device *device);
 int_fast8_t  ow_device_read_rom(struct ow_device *device);
 int_fast8_t  ow_device_read_scratchpad(struct ow_device *device,
 				       uint8_t *scratchpad);
+int_fast8_t  ow_device_convert_temperature(struct ow_device *device);
+
 #endif /* ONE_WIRE_H_ */

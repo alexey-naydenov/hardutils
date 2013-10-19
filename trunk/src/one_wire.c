@@ -214,6 +214,19 @@ int_fast8_t ow_bus_read(struct ow_bus *bus, uint8_t *data) {
   bus->bit = 0;
   return ow_bus_read_next_bit(bus);
 }
+
+int_fast8_t ow_bus_read_bit(struct ow_bus *bus) {
+  uint_fast8_t rc;
+  bus->output_fn();
+  bus->pull_down_fn();
+  td_start(bus->timer);
+  td_wait(bus->timer, 1);
+  bus->input_fn();
+  td_wait(bus->timer, 11);
+  rc = bus->read_fn();
+  return rc;
+}
+
 int_fast8_t ow_bus_read_next_bit(struct ow_bus *bus) {
   uint_fast8_t rc;
   bus->output_fn();
@@ -235,12 +248,14 @@ int_fast8_t ow_bus_read_next_bit(struct ow_bus *bus) {
 enum ow_device_operations {
   OW_DEVICE_OP_RESET = 0,
   OW_DEVICE_OP_WRITE,
-  OW_DEVICE_OP_READ
+  OW_DEVICE_OP_READ,
+  OW_DEVICE_OP_WAIT_1
 };
 
 enum ow_device_states {
   OW_DEVICE_IDLE = 0,
-  OW_DEVICE_BUSY
+  OW_DEVICE_BUSY,
+  OW_DEVICE_WAIT
 };
 
 const enum ow_device_operations OW_READ_ROM_OPERATIONS[] = {
@@ -257,6 +272,14 @@ const enum ow_device_operations OW_READ_SCRATCHPAD_OPERATIONS[] = {
   OW_DEVICE_OP_READ, OW_DEVICE_OP_READ, OW_DEVICE_OP_READ, OW_DEVICE_OP_READ,
   OW_DEVICE_OP_READ};
 
+const enum ow_device_operations OW_READ_CONVERT_TEMPERATURE_OPERATIONS[] = {
+  OW_DEVICE_OP_RESET, OW_DEVICE_OP_WRITE, /* match rom */
+  OW_DEVICE_OP_WRITE, OW_DEVICE_OP_WRITE, OW_DEVICE_OP_WRITE, OW_DEVICE_OP_WRITE, 
+  OW_DEVICE_OP_WRITE, OW_DEVICE_OP_WRITE, OW_DEVICE_OP_WRITE, OW_DEVICE_OP_WRITE,
+  OW_DEVICE_OP_WRITE,
+  OW_DEVICE_OP_WAIT_1
+};
+
 #define OW_DEVICE_BUFFER_SIZE 19
 
 struct ow_device {
@@ -268,6 +291,7 @@ struct ow_device {
   uint8_t *buffer; /* buffer for sending data, stores device address */
   uint8_t *data_source;
   uint8_t *data_sink;
+  uint_fast8_t wait_value;
 };
 
 /* Create and destruction. */
@@ -321,7 +345,23 @@ int_fast8_t ow_device_continue(struct ow_device *device) {
   case OW_DEVICE_BUSY:
     rc = ow_bus_continue(device->bus);
     if (rc == 0) {
-      if (device->operation_count-- == 0) {
+      device->operation_count--;
+      if (device->operation_count == 0) {
+	device->state = OW_DEVICE_IDLE;
+	return 0;
+      }
+      device->operations++;
+      return ow_device_start_operation(device);
+    }
+    if (rc < 0) {
+      device->state = OW_DEVICE_IDLE;
+    }
+    return rc;
+  case OW_DEVICE_WAIT:
+    rc = ow_bus_read_bit(device->bus);
+    if (rc == device->wait_value) {
+      device->operation_count--;
+      if (device->operation_count == 0) {
 	device->state = OW_DEVICE_IDLE;
 	return 0;
       }
@@ -351,6 +391,11 @@ int_fast8_t ow_device_start_operation(struct ow_device *device) {
   case OW_DEVICE_OP_READ:
     rc = ow_bus_read(device->bus, device->data_sink);
     device->data_sink++;
+    break;
+  case OW_DEVICE_OP_WAIT_1:
+    device->wait_value = 1;
+    device->state = OW_DEVICE_WAIT;
+    rc = 0;
     break;
   }
   if (rc < 0) {
@@ -389,7 +434,21 @@ int_fast8_t  ow_device_read_scratchpad(struct ow_device *device,
   device->data_source = device->buffer;
   device->data_source[0] = 0x55; /* match rom */
   /* address must be stored in bytes 1...8 */
-  device->data_source[9] = 0xbe; /* read scratchpad */
+  device->data_source[OW_ADDRESS_LENGTH + 1] = 0xbe; /* read scratchpad */
   device->data_sink = scratchpad;
+  return ow_device_start_operation(device);
+}
+
+int_fast8_t  ow_device_convert_temperature(struct ow_device *device) {
+  if (device->state != OW_DEVICE_IDLE) {
+    return -OW_ERROR_BUSY;
+  }
+  device->operation_count = ARRAY_SIZE(OW_READ_CONVERT_TEMPERATURE_OPERATIONS);
+  device->operations = OW_READ_CONVERT_TEMPERATURE_OPERATIONS;
+  device->data_source = device->buffer;
+  device->data_source[0] = 0x55; /* match rom */
+  /* address must be stored in bytes 1...8 */
+  device->data_source[OW_ADDRESS_LENGTH + 1] = 0x44; /* convert temp */
+  device->data_sink = NULL;
   return ow_device_start_operation(device);
 }
