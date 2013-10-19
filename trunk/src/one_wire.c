@@ -21,6 +21,20 @@ uint8_t ow_crc(uint8_t *data, int length) {
   return crc;
 }
 
+int_fast8_t ow_calculate_temperature(uint8_t lsb, uint8_t msb, 
+				     int8_t *int_part, uint8_t *frac_part) {
+  *int_part = ((msb & 0x7) << 4) + (lsb >> 4);
+  if (msb & 0x8) {
+    *int_part = -(*int_part);
+  }
+  *frac_part = 0;
+  if (lsb & (1 << 3)) *frac_part += 50;
+  if (lsb & (1 << 2)) *frac_part += 25;
+  if (lsb & (1 << 1)) *frac_part += 12;
+  if (lsb & 1) *frac_part += 6;
+  return 0;
+}
+
 enum ow_errors {
   OW_ERROR = 1,
   OW_ERROR_BUSY,

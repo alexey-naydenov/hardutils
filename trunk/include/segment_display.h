@@ -126,6 +126,7 @@ int sd_display_uint(struct sd_display *display, int_fast8_t first_digit,
 int sd_display_int(struct sd_display *display, int_fast8_t first_digit,
 		   int_fast8_t last_digit, int value);
 
+
 #ifdef __cplusplus
 } // extern C
 #endif

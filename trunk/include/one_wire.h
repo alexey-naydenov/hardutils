@@ -28,7 +28,8 @@
 #include "timer_delay.h"
 
 uint8_t ow_crc(uint8_t *data, int length);
-
+int_fast8_t ow_calculate_temperature(uint8_t lsb, uint8_t msb, 
+				     int8_t *int_part, uint8_t *frac_part);
 /*! 1wire bus object. */
 struct ow_bus;
 /* Create and destruction. */

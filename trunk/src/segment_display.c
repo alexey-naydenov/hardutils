@@ -215,6 +215,13 @@ int sd_connect_display_to_data(struct sd_display *display, enum sd_character *da
   return 0;
 }
 
+int sd_set_dot_position(struct sd_display *display, int_fast8_t pos) {
+  if (display == NULL) {
+    return -1;
+  }
+  display->dot_position = pos;
+}
+
 int sd_show_next(struct sd_display *display) {
   int seg;
   unsigned char current_char;
@@ -251,6 +258,10 @@ int sd_show_next(struct sd_display *display) {
            display->segment_pin_map[seg].pin);  
     }
     current_char >>=1;
+  }
+  if (display->dot_position == display->current_digit) {
+    display->turn_on_segment(display->segment_pin_map[7].port,
+			     display->segment_pin_map[7].pin);
   }
   return 0;
 }
