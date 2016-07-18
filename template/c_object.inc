@@ -18,7 +18,7 @@ _NEW_START_DEFN = _NEW_DECL + '\n'.join(
          '\tstruct {ns}{class} *obj;',
          '\tobj = calloc(1, sizeof(struct {ns}{class}));',
          '\tif (!obj)',
-         '\t\treturn NULL;',
+         '\t\treturn -1;',
          '\tobj->refcount = 1;',])
 _NEW_END_DEFN = '\n'.join(
         ['\t*obj_pointer = obj;',
